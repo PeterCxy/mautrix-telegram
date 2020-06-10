@@ -70,6 +70,11 @@ class TelegramFile(Base):
     def get(cls, loc_id: str) -> Optional['TelegramFile']:
         return cls._select_one_or_none(cls.c.id == loc_id)
 
+    @classmethod
+    def delete(cls, loc_id: str) -> None:
+        with cls.db.begin() as conn:
+            conn.execute(cls.t.delete().where(cls.c.id == loc_id))
+
     def insert(self) -> None:
         with self.db.begin() as conn:
             conn.execute(self.t.insert().values(

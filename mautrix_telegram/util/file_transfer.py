@@ -171,7 +171,15 @@ async def transfer_file_to_matrix(client: MautrixTelegramClient, intent: IntentA
 
     db_file = DBTelegramFile.get(location_id)
     if db_file:
-        return db_file
+        is_broken_sticker = is_sticker and (db_file.mime_type == "application/gzip") or (db_file.mime_type == "application/x-gzip")
+        if is_broken_sticker:
+            log.info("broken sticker detected; redownloading id = " + db_file.id)
+            try:
+                DBTelegramFile.delete(location_id)
+            except:
+                log.info("Failed to remove broken sticker from DB")
+        if not is_broken_sticker:
+            return db_file
 
     try:
         lock = transfer_locks[location_id]
@@ -215,7 +223,8 @@ async def _unlocked_transfer_file_to_matrix(client: MautrixTelegramClient, inten
         # A weird bug in alpine/magic makes it return application/octet-stream for gzips...
         if is_sticker and tgs_convert and (mime_type == "application/gzip" or (
             mime_type == "application/octet-stream"
-            and magic.from_buffer(file).startswith("gzip"))):
+            and magic.from_buffer(file).startswith("gzip")) or (
+            mime_type == "application/x-gzip")):
             mime_type, file, width, height = await convert_tgs_to(
                 file, tgs_convert["target"], **tgs_convert["args"])
             thumbnail = None
